@@ -20,6 +20,10 @@ static bool eth_connected = false;
 WebServer server(80);  // Object of WebServer(HTTP port, 80 is default)
 hw_timer_t *My_timer = NULL;
 
+IPAddress newIP(10,0,20,100);
+IPAddress subnet(255,255,255,0);
+IPAddress gateway(10,0,20,1);
+
 void WiFiEvent(WiFiEvent_t event)
 {
 #if ESP_IDF_VERSION_MAJOR > 3
@@ -109,6 +113,8 @@ void setup()
   WiFi.onEvent(WiFiEvent);
 
   ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
+  ETH.config(newIP,gateway,subnet);
+  
 
   strip.begin();
   strip.setBrightness(10);  
