@@ -141,7 +141,7 @@ void setup()
    
    My_timer = timerBegin(0,80,true);
    timerAttachInterrupt(My_timer, &onTimer, true);
-   timerAlarmWrite(My_timer, 10000000, true);
+   timerAlarmWrite(My_timer, 15000000, true);
    timerAlarmEnable(My_timer);
  
 }

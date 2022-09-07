@@ -16,6 +16,7 @@ int delayval = 100;
 static bool eth_connected = false;
 
 hw_timer_t *My_timer = NULL;
+volatile bool interruptbool1 = false;
 
 IPAddress newIP(10,0,20,150);
 IPAddress subnet(255,255,255,0);
@@ -101,17 +102,8 @@ void WiFiEvent(WiFiEvent_t event)
 }
 
 void IRAM_ATTR onTimer(){
- if (eth_connected)
-  {
-    //bool success = testClient("10.20.0.100", 80);
-  //testClient("10.20.0.100", 80);
-
+  interruptbool1 = true;
   }
-  
-  strip.setLedColorData(0, 0, 255, 0);
-  strip.show();
-
-}
 
 bool testClient(const char *host, uint16_t port)
 {
@@ -210,7 +202,9 @@ void setup()
   timerAttachInterrupt(My_timer, &onTimer, true);
   timerAlarmWrite(My_timer, 10000000, true);
   timerAlarmEnable(My_timer);
-  
+
+  strip.setLedColorData(0, 255, 0, 0);
+  strip.show();
 }
 
 void loop()
@@ -227,6 +221,7 @@ int buttonState_off = digitalRead(14);
     
       if (panic_on==0){
       switch_on("10.0.20.100", 80);
+      digitalWrite(13, HIGH);
       panic_on=1;
       }
       
@@ -240,10 +235,32 @@ int buttonState_off = digitalRead(14);
     
     if (panic_on==1){
       switch_off("10.0.20.100", 80);
+      digitalWrite(13, LOW);
       panic_on=0;
       }
       
     }
   }
-  
+
+  if (interruptbool1) {
+   bool success=0;
+   if (eth_connected) {
+    success = testClient("10.0.20.100", 80);
+    }
+    else {
+    strip.setLedColorData(0, 255, 0, 0);
+    strip.show();    
+    }
+
+    if (success==0) {
+    strip.setLedColorData(0, 0, 255, 0);
+    strip.show();
+    }
+
+    if (success==1) {
+    strip.setLedColorData(0, 255, 0, 0);
+    strip.show();  
+    }
+    interruptbool1 = false;
+  }
 }
