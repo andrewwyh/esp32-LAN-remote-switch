@@ -9,15 +9,16 @@
 #define LEDS_COUNT  8
 #define LEDS_PIN  12
 #define CHANNEL   0
+#define RELAYPIN 14
 
 Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(LEDS_COUNT, LEDS_PIN, CHANNEL, TYPE_GRB);
 
-u8 m_color[5][3] = { {255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 255}, {0, 0, 0} };
 int delayval = 100;
 
 static bool eth_connected = false;
 
-WebServer server(80);  // Object of WebServer(HTTP port, 80 is defult)
+WebServer server(80);  // Object of WebServer(HTTP port, 80 is default)
+hw_timer_t *My_timer = NULL;
 
 void WiFiEvent(WiFiEvent_t event)
 {
@@ -96,27 +97,10 @@ void WiFiEvent(WiFiEvent_t event)
 #endif
 }
 
-void testClient(const char *host, uint16_t port)
-{
-  Serial.print("\nconnecting to ");
-  Serial.println(host);
-
-  WiFiClient client;
-  if (!client.connect(host, port))
-  {
-    Serial.println("connection failed");
-    return;
-  }
-  client.printf("GET / HTTP/1.1\r\nHost: %s\r\n\r\n", host);
-  while (client.connected() && !client.available())
-    ;
-  while (client.available())
-  {
-    Serial.write(client.read());
-  }
-
-  Serial.println("closing connection\n");
-  client.stop();
+void IRAM_ATTR onTimer(){
+  strip.setLedColorData(0, 255, 0, 0);
+  strip.show();
+  //timerEnd(My_timer);
 }
 
 void setup()
@@ -124,101 +108,87 @@ void setup()
   Serial.begin(115200);
   WiFi.onEvent(WiFiEvent);
 
-/*
-  SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
-  if (!SD.begin(SD_CS))
-  {
-    Serial.println("SDCard MOUNT FAIL");
-  }
-  else
-  {
-    uint32_t cardSize = SD.cardSize() / (1024 * 1024);
-    String str = "SDCard Size: " + String(cardSize) + "MB";
-    Serial.println(str);
-  }
-*/
-
-  pinMode(NRST, OUTPUT);
-  digitalWrite(NRST, 0);
-  delay(200);
-  digitalWrite(NRST, 1);
-  delay(200);
-  digitalWrite(NRST, 0);
-  delay(200);
-  digitalWrite(NRST, 1);
-  delay(200);
-
   ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
 
   strip.begin();
   strip.setBrightness(10);  
 
-  pinMode(2, INPUT_PULLUP); // set the pin as output
-  //digitalWrite(2, LOW);
-
-  pinMode(14, OUTPUT); // set the pin as output
-  digitalWrite(14, LOW);
+  pinMode(RELAYPIN, OUTPUT); // set the pin as output
+  digitalWrite(RELAYPIN, LOW);
 
   pinMode(13, OUTPUT); // set the pin as output
   digitalWrite(13, LOW);
 
   pinMode(15, OUTPUT); // set the pin as output
   digitalWrite(15, LOW);
-
+  
   server.on("/", handle_root);
+  server.on("/switchon", handle_switchon);
+  server.on("/switchoff", handle_switchoff);
+
   server.begin();
   Serial.println("HTTP server started");
   delay(100); 
-  
-  
+
+   strip.setLedColorData(0, 255, 0, 0);
+   strip.show();
+   
+   My_timer = timerBegin(0,80,true);
+   timerAttachInterrupt(My_timer, &onTimer, true);
+   timerAlarmWrite(My_timer, 10000000, true);
+   timerAlarmEnable(My_timer);
+ 
 }
 
 void loop()
 {
-/*  if (eth_connected)
-  {
-    testClient("baidu.com", 80);
-  }
-
-*/
-/*
-for (int j = 0; j < 5; j++) {
-    for (int i = 0; i < LEDS_COUNT; i++) {
-      strip.setLedColorData(i, m_color[j][0], m_color[j][1], m_color[j][2]);
-      strip.show();
-      delay(delayval);
-    }
-    delay(500);
-  }
-*/
-
-int buttonState = digitalRead(2);
-
-  if (buttonState == LOW) {
-    delay (500);
-
-    if (buttonState == LOW){  
-    Serial.println("Button pressed\n");
-    digitalWrite(14, HIGH);
-    }
-  }
-
-  if (buttonState == HIGH)
-        digitalWrite(14, LOW);
 
 server.handleClient();
 
 }
 
 // HTML & CSS contents which display on web server
-String HTML = "<!DOCTYPE html>\
+String HTMLROOT = "<!DOCTYPE html>\
 <html>\
 <body>\
 <h1>My First Web Server with ESP32 - Station Mode &#128522;</h1>\
 </body>\
 </html>";
 
+
+// HTML & CSS contents which display on web server
+String HTMLSWITCHON = "<!DOCTYPE html>\
+<html>\
+<body>\
+<h1>SWITCH TRIGGERED ON &#128522;</h1>\
+</body>\
+</html>";
+
+// HTML & CSS contents which display on web server
+String HTMLSWITCHOFF = "<!DOCTYPE html>\
+<html>\
+<body>\
+<h1>SWITCH TRIGGERED OFF &#128522;</h1>\
+</body>\
+</html>";
+
 // Handle root url (/)
 void handle_root() {
-  server.send(200, "text/html", HTML);
+  server.send(200, "text/html", HTMLROOT);
+  strip.setLedColorData(0, 0, 255, 0);
+  strip.show();
+  timerRestart(My_timer);
+
+}
+
+// Handle switch url (/switchon)
+void handle_switchon() {
+  server.send(200, "text/html", HTMLSWITCHON);
+  digitalWrite(RELAYPIN, HIGH); 
+}
+
+// Handle switch url (/switchoff)
+void handle_switchoff() {
+  server.send(200, "text/html", HTMLSWITCHOFF);
+  digitalWrite(RELAYPIN, LOW);
 }
