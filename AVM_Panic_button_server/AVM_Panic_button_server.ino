@@ -4,6 +4,7 @@
 #include <SD.h>
 #include "config.h"
 #include "Freenove_WS2812_Lib_for_ESP32.h"
+#include <WebServer.h>
 
 #define LEDS_COUNT  8
 #define LEDS_PIN  12
@@ -15,6 +16,8 @@ u8 m_color[5][3] = { {255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 255}, {0,
 int delayval = 100;
 
 static bool eth_connected = false;
+
+WebServer server(80);  // Object of WebServer(HTTP port, 80 is defult)
 
 void WiFiEvent(WiFiEvent_t event)
 {
@@ -161,6 +164,12 @@ void setup()
 
   pinMode(15, OUTPUT); // set the pin as output
   digitalWrite(15, LOW);
+
+  server.on("/", handle_root);
+  server.begin();
+  Serial.println("HTTP server started");
+  delay(100); 
+  
   
 }
 
@@ -197,5 +206,19 @@ int buttonState = digitalRead(2);
   if (buttonState == HIGH)
         digitalWrite(14, LOW);
 
+server.handleClient();
 
+}
+
+// HTML & CSS contents which display on web server
+String HTML = "<!DOCTYPE html>\
+<html>\
+<body>\
+<h1>My First Web Server with ESP32 - Station Mode &#128522;</h1>\
+</body>\
+</html>";
+
+// Handle root url (/)
+void handle_root() {
+  server.send(200, "text/html", HTML);
 }
