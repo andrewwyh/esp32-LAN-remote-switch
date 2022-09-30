@@ -10,6 +10,14 @@
 #define LEDS_PIN  12
 #define CHANNEL   0
 #define RELAYPIN 14
+#define REDLED 2
+#define GREENLED 13
+#define BLINK_INTERVAL 1000
+
+unsigned long previousMillis = 0;
+bool greenledState=0;
+
+bool online=0;
 
 Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(LEDS_COUNT, LEDS_PIN, CHANNEL, TYPE_GRB);
 
@@ -104,6 +112,7 @@ void WiFiEvent(WiFiEvent_t event)
 void IRAM_ATTR onTimer(){
   strip.setLedColorData(0, 255, 0, 0);
   strip.show();
+  online = 0;
   //timerEnd(My_timer);
 }
 
@@ -122,11 +131,11 @@ void setup()
   pinMode(RELAYPIN, OUTPUT); // set the pin as output
   digitalWrite(RELAYPIN, LOW);
 
-  pinMode(13, OUTPUT); // set the pin as output
-  digitalWrite(13, LOW);
+  pinMode(REDLED, OUTPUT); // set the pin as output
+  digitalWrite(REDLED, HIGH);
 
-  pinMode(15, OUTPUT); // set the pin as output
-  digitalWrite(15, LOW);
+  pinMode(GREENLED, OUTPUT); // set the pin as output
+  digitalWrite(GREENLED, HIGH);
   
   server.on("/", handle_root);
   server.on("/switchon", handle_switchon);
@@ -138,16 +147,33 @@ void setup()
 
    strip.setLedColorData(0, 255, 0, 0);
    strip.show();
+   online = 0;
    
    My_timer = timerBegin(0,80,true);
    timerAttachInterrupt(My_timer, &onTimer, true);
    timerAlarmWrite(My_timer, 15000000, true);
    timerAlarmEnable(My_timer);
+
+
  
 }
 
 void loop()
 {
+
+unsigned long currentMillis = millis();
+
+if (online == 1) {
+  digitalWrite(GREENLED,0);
+}
+
+if (online == 0) {
+  if (currentMillis - previousMillis >= BLINK_INTERVAL) {
+      greenledState = (greenledState == LOW) ? HIGH : LOW;
+      digitalWrite(GREENLED,greenledState);
+      previousMillis = currentMillis;
+  }
+}
 
 server.handleClient();
 
@@ -183,6 +209,7 @@ void handle_root() {
   server.send(200, "text/html", HTMLROOT);
   strip.setLedColorData(0, 0, 255, 0);
   strip.show();
+  online = 1;
   timerRestart(My_timer);
 
 }
