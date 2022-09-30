@@ -10,6 +10,20 @@
 #define LEDS_PIN  12
 #define CHANNEL   0
 
+#define BUTTON_PRESS_DELAY 5000
+unsigned long int button_press_millis = 0;
+
+#define REDLED 14
+#define GREENLED 13
+#define BLINK_INTERVAL 1000
+
+#define BUZZER_LED 15
+
+unsigned long previousMillis = 0;
+bool greenledState=0;
+
+bool online=0;
+
 Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(LEDS_COUNT, LEDS_PIN, CHANNEL, TYPE_GRB);
 int delayval = 100;
 
@@ -190,57 +204,75 @@ void setup()
 
   pinMode(2, INPUT_PULLUP); // set the pin as input
 
-  pinMode(14, INPUT_PULLUP); // set the pin as input
+  pinMode(REDLED, OUTPUT);
+  digitalWrite(REDLED, HIGH);
+  
+  pinMode(GREENLED, OUTPUT); // set the pin as output
+  digitalWrite(GREENLED, HIGH);
 
-  pinMode(13, OUTPUT); // set the pin as output
-  digitalWrite(13, LOW);
+  pinMode(BUZZER_LED, OUTPUT);
+  digitalWrite(BUZZER_LED, LOW);
 
-  pinMode(15, OUTPUT); // set the pin as output
-  digitalWrite(15, LOW);
-
+  strip.setLedColorData(0, 255, 0, 0);
+  strip.show();
+  online = 0;
+  
   My_timer = timerBegin(0,80,true);
   timerAttachInterrupt(My_timer, &onTimer, true);
   timerAlarmWrite(My_timer, 10000000, true);
   timerAlarmEnable(My_timer);
 
-  strip.setLedColorData(0, 255, 0, 0);
-  strip.show();
 }
 
 void loop()
 {
 
+unsigned long buttoncurrentmillis = millis();
+
+if (buttoncurrentmillis - button_press_millis > BUTTON_PRESS_DELAY) {
+
 int buttonState_on = digitalRead(2);
-int buttonState_off = digitalRead(14);
 
   if (buttonState_on == LOW) {
     delay (500);
 
     if (buttonState_on == LOW){  
-    Serial.println("On Button pressed\n");
+
+    button_press_millis = buttoncurrentmillis;
     
       if (panic_on==0){
+      Serial.println("On Button pressed\n");
       switch_on("10.0.20.100", 80);
-      digitalWrite(13, HIGH);
+      digitalWrite(BUZZER_LED, HIGH);
       panic_on=1;
       }
-      
-    }
-  }
-  if (buttonState_off == LOW) {
-    delay (500);
 
-    if (buttonState_off == LOW){  
-    Serial.println("Off Button pressed\n");
-    
-    if (panic_on==1){
+      else if (panic_on==1){
+      Serial.println("Off Button pressed\n");
       switch_off("10.0.20.100", 80);
-      digitalWrite(13, LOW);
+      digitalWrite(BUZZER_LED, LOW);
       panic_on=0;
       }
-      
+           
     }
   }
+}
+
+
+unsigned long currentMillis = millis();
+
+if (online == 1) {
+  digitalWrite(GREENLED,0);
+}
+
+if (online == 0) {
+  if (currentMillis - previousMillis >= BLINK_INTERVAL) {
+      greenledState = (greenledState == LOW) ? HIGH : LOW;
+      digitalWrite(GREENLED,greenledState);
+      previousMillis = currentMillis;
+  }
+}
+
 
   if (interruptbool1) {
    bool success=0;
